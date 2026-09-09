@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -39,7 +39,7 @@ jobs:
       - name: Build APK with Gradle
         run: |
           cd paint/build/ArmorPaint
-          gradle wrapper --gradle-version 8.5
+          gradle wrapper --gradle-version 7.6.3
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
