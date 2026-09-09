@@ -35,7 +35,7 @@ jobs:
 
       - name: Build APK with Gradle
         run: |
-          cd build/ArmorPaint
+          cd paint/build/ArmorPaint
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
@@ -43,4 +43,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ArmorPaint-APK
-          path: build/ArmorPaint/app/build/outputs/apk/**/*.apk
+          path: paint/build/ArmorPaint/app/build/outputs/apk/**/*.apk
