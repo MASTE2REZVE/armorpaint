@@ -23,6 +23,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -36,6 +39,7 @@ jobs:
       - name: Build APK with Gradle
         run: |
           cd paint/build/ArmorPaint
+          gradle wrapper
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
