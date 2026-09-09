@@ -15,7 +15,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -28,6 +28,7 @@ jobs:
 
       - name: Generate Android Project
         run: |
+          git submodule update --init --recursive
           cd paint
           node ../base/make --target android
 
@@ -35,7 +36,7 @@ jobs:
         run: |
           cd build/ArmorPaint
           chmod +x ./gradlew
-          ./gradlew assembleRelease || ./gradlew assembleDebug
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
