@@ -23,10 +23,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Set up Android NDK & CMake
+        uses: android-actions/setup-android@v3
         with:
-          gradle-version: '8.13'
+          packages: 'ndk;25.2.9519653 cmake;3.22.1'
 
       - name: Generate Android Project
         run: |
@@ -35,9 +35,10 @@ jobs:
           chmod +x ../base/make
           bash ../base/make --target android
 
-      - name: Build APK with Gradle
+      - name: Build APK
         run: |
           cd paint/build/ArmorPaint
+          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
           gradle wrapper --gradle-version 8.13
           chmod +x ./gradlew
           ./gradlew assembleDebug
