@@ -23,7 +23,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android NDK & CMake
+      - name: Set up Android SDK, NDK, and CMake
         uses: android-actions/setup-android@v3
         with:
           packages: 'ndk;25.2.9519653 cmake;3.22.1'
@@ -35,7 +35,7 @@ jobs:
           chmod +x ../base/make
           bash ../base/make --target android
 
-      - name: Build APK
+      - name: Build APK with Gradle
         run: |
           cd paint/build/ArmorPaint
           export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
