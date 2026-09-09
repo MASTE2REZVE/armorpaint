@@ -30,7 +30,8 @@ jobs:
         run: |
           git submodule update --init --recursive
           cd paint
-          node ../base/make --target android
+          chmod +x ../base/make
+          bash ../base/make --target android
 
       - name: Build APK with Gradle
         run: |
