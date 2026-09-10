@@ -9,30 +9,30 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------
+      # ==================================================
       # 1. Checkout ArmorPaint
-      # --------------------------------------------------
+      # ==================================================
       - name: Checkout ArmorPaint
         uses: actions/checkout@v4
 
-      # --------------------------------------------------
+      # ==================================================
       # 2. Java 21
-      # --------------------------------------------------
+      # ==================================================
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      # --------------------------------------------------
+      # ==================================================
       # 3. Android SDK
-      # --------------------------------------------------
+      # ==================================================
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # --------------------------------------------------
-      # 4. Install Android build components
-      # --------------------------------------------------
+      # ==================================================
+      # 4. Install Android SDK components
+      # ==================================================
       - name: Install Android SDK components
         run: |
           yes | sdkmanager --licenses || true
@@ -44,9 +44,9 @@ jobs:
             "ndk;29.0.14206865" \
             "cmake;4.0.2"
 
-      # --------------------------------------------------
+      # ==================================================
       # 5. Fix ArmorPaint template paths
-      # --------------------------------------------------
+      # ==================================================
       - name: Fix ArmorPaint template paths
         shell: bash
         run: |
@@ -71,9 +71,9 @@ jobs:
               print("No incorrect template paths found.")
           PY
 
-      # --------------------------------------------------
+      # ==================================================
       # 6. Verify Android template
-      # --------------------------------------------------
+      # ==================================================
       - name: Verify Android template
         run: |
           set -e
@@ -84,6 +84,9 @@ jobs:
 
           test -s \
             "base/sources/backends/data/android/gradlew"
+
+          test -s \
+            "base/sources/backends/data/android/gradlew.bat"
 
           test -s \
             "base/sources/backends/data/android/gradle/wrapper/gradle-wrapper.jar"
@@ -99,9 +102,9 @@ jobs:
           ls -lah \
             "base/sources/backends/data/android/gradle/wrapper"
 
-      # --------------------------------------------------
+      # ==================================================
       # 7. Generate Android project
-      # --------------------------------------------------
+      # ==================================================
       - name: Generate Android project
         working-directory: paint
         shell: bash
@@ -119,9 +122,9 @@ jobs:
           echo
           echo "ArmorPaint Android generation completed."
 
-      # --------------------------------------------------
-      # 8. Repair Gradle wrapper if generator omitted it
-      # --------------------------------------------------
+      # ==================================================
+      # 8. Repair Android Gradle wrapper
+      # ==================================================
       - name: Repair generated Gradle wrapper
         working-directory: paint
         shell: bash
@@ -135,29 +138,62 @@ jobs:
           echo "Template: $TEMPLATE"
 
           test -d "$PROJECT"
+          test -d "$TEMPLATE"
 
           mkdir -p "$PROJECT/gradle/wrapper"
 
+          echo
+          echo "Copying gradlew..."
+
+          cp \
+            "$TEMPLATE/gradlew" \
+            "$PROJECT/gradlew"
+
+          echo
+          echo "Copying gradlew.bat..."
+
+          cp \
+            "$TEMPLATE/gradlew.bat" \
+            "$PROJECT/gradlew.bat"
+
+          echo
           echo "Copying Gradle wrapper JAR..."
 
           cp \
             "$TEMPLATE/gradle/wrapper/gradle-wrapper.jar" \
             "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
 
+          echo
           echo "Copying Gradle wrapper properties..."
 
           cp \
             "$TEMPLATE/gradle/wrapper/gradle-wrapper.properties" \
             "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
 
-          echo
-          echo "Gradle wrapper repaired."
+          chmod +x "$PROJECT/gradlew"
 
+          echo
+          echo "First lines of gradlew:"
+          head -n 5 "$PROJECT/gradlew"
+
+          echo
+          echo "Gradle wrapper directory:"
           ls -lah "$PROJECT/gradle/wrapper"
 
-      # --------------------------------------------------
+          echo
+          echo "Checking files..."
+
+          test -s "$PROJECT/gradlew"
+          test -s "$PROJECT/gradlew.bat"
+          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
+          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
+
+          echo
+          echo "Gradle wrapper repaired successfully."
+
+      # ==================================================
       # 9. Verify generated Android project
-      # --------------------------------------------------
+      # ==================================================
       - name: Verify generated Android project
         working-directory: paint
         shell: bash
@@ -172,6 +208,8 @@ jobs:
 
           test -s "$PROJECT/gradlew"
 
+          test -s "$PROJECT/gradlew.bat"
+
           test -s \
             "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
 
@@ -185,25 +223,26 @@ jobs:
           echo "Gradle wrapper:"
           ls -lah "$PROJECT/gradle/wrapper"
 
-      # --------------------------------------------------
+      # ==================================================
       # 10. Make Gradle executable
-      # --------------------------------------------------
+      # ==================================================
       - name: Make Gradle executable
         working-directory: paint/build/ArmorPaint
         run: |
           chmod +x gradlew
 
-      # --------------------------------------------------
+      # ==================================================
       # 11. Check Gradle
-      # --------------------------------------------------
+      # ==================================================
       - name: Check Gradle
         working-directory: paint/build/ArmorPaint
+        shell: bash
         run: |
           ./gradlew --version
 
-      # --------------------------------------------------
+      # ==================================================
       # 12. Build APK
-      # --------------------------------------------------
+      # ==================================================
       - name: Build APK
         working-directory: paint/build/ArmorPaint
         shell: bash
@@ -212,9 +251,9 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      # --------------------------------------------------
-      # 13. Find APK
-      # --------------------------------------------------
+      # ==================================================
+      # 13. Verify APK
+      # ==================================================
       - name: Verify APK
         shell: bash
         run: |
@@ -228,11 +267,11 @@ jobs:
             -name "*.apk" \
             -print
 
-          APK=$(find \
+          APK="$(find \
             paint/build/ArmorPaint/app/build/outputs \
             -type f \
             -name "*.apk" \
-            -print -quit)
+            -print -quit)"
 
           if [ -z "$APK" ]; then
             echo "ERROR: APK was not generated."
@@ -243,9 +282,9 @@ jobs:
           echo "APK successfully generated:"
           echo "$APK"
 
-      # --------------------------------------------------
+      # ==================================================
       # 14. Upload APK
-      # --------------------------------------------------
+      # ==================================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
