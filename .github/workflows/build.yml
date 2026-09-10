@@ -1,50 +1,49 @@
-name: Build Android APK
+name: Build ArmorPaint Android
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+  build-android:
+    runs-on: ubuntu-24.04
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    steps:
+      - name: Checkout ArmorPaint
+        uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: '21'
 
-      - name: Set up Android SDK, NDK, and CMake
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: 'ndk;25.2.9519653 cmake;3.22.1'
 
-      - name: Generate Android Project
+      - name: Install Android SDK components
         run: |
-          git submodule update --init --recursive
-          cd paint
-          chmod +x ../base/make
-          bash ../base/make --target android
+          sdkmanager "platform-tools" \
+                     "platforms;android-36" \
+                     "build-tools;36.0.0" \
+                     "ndk;29.0.14206865" \
+                     "cmake;4.0.2"
 
-      - name: Build APK with Gradle
+      - name: Generate Android project
+        working-directory: paint
         run: |
-          cd paint/build/ArmorPaint
-          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
-          gradle wrapper --gradle-version 8.13
-          chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ../base/make --target android
+
+      - name: Make Gradle executable
+        working-directory: paint/build/ArmorPaint
+        run: chmod +x gradlew
+
+      - name: Build APK
+        working-directory: paint/build/ArmorPaint
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ArmorPaint-APK
-          path: paint/build/ArmorPaint/app/build/outputs/apk/**/*.apk
+          name: ArmorPaint-Android-APK
+          path: paint/build/ArmorPaint/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
