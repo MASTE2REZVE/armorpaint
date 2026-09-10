@@ -56,6 +56,10 @@ jobs:
           from pathlib import Path
 
           path = Path("base/tools/make.js")
+
+          if not path.exists():
+              raise SystemExit("ERROR: base/tools/make.js not found")
+
           text = path.read_text()
 
           old = 'irondir + "/sources/backends/data/"'
@@ -68,15 +72,15 @@ jobs:
           if count:
               text = text.replace(old, new)
               path.write_text(text)
-              print("Paths fixed.")
+              print("Template paths fixed.")
           else:
-              print("No path replacement necessary.")
+              print("No template path replacement necessary.")
           PY
 
       # ============================================================
-      # 5. INSPECT THE ACTUAL ANDROID TEMPLATE
+      # 5. INSPECT ANDROID TEMPLATE
       # ============================================================
-      - name: Inspect Android template files
+      - name: Inspect Android template
         shell: bash
         run: |
           set -e
@@ -84,48 +88,52 @@ jobs:
           TEMPLATE="base/sources/backends/data/android"
 
           echo
-          echo "========================================"
-          echo "ANDROID TEMPLATE FILES"
-          echo "========================================"
+          echo "============================================================"
+          echo "ANDROID TEMPLATE"
+          echo "============================================================"
 
-          find "$TEMPLATE" -maxdepth 4 -type f -print | sort
+          test -d "$TEMPLATE"
 
           echo
-          echo "========================================"
-          echo "TEMPLATE FILE SIZES"
-          echo "========================================"
+          echo "Template files:"
+          find "$TEMPLATE" -maxdepth 5 -type f -print | sort
 
-          find "$TEMPLATE" -maxdepth 4 -type f \
+          echo
+          echo "Template file sizes:"
+          find "$TEMPLATE" -maxdepth 5 -type f \
             -printf '%s bytes  %p\n' | sort -n
 
           echo
-          echo "========================================"
+          echo "============================================================"
           echo "TEMPLATE build.gradle.kts"
-          echo "========================================"
+          echo "============================================================"
 
           if [ -f "$TEMPLATE/build.gradle.kts" ]; then
+            wc -c "$TEMPLATE/build.gradle.kts"
             cat "$TEMPLATE/build.gradle.kts"
           else
             echo "MISSING"
           fi
 
           echo
-          echo "========================================"
+          echo "============================================================"
           echo "TEMPLATE settings.gradle.kts"
-          echo "========================================"
+          echo "============================================================"
 
           if [ -f "$TEMPLATE/settings.gradle.kts" ]; then
+            wc -c "$TEMPLATE/settings.gradle.kts"
             cat "$TEMPLATE/settings.gradle.kts"
           else
             echo "MISSING"
           fi
 
           echo
-          echo "========================================"
+          echo "============================================================"
           echo "TEMPLATE gradle.properties"
-          echo "========================================"
+          echo "============================================================"
 
           if [ -f "$TEMPLATE/gradle.properties" ]; then
+            wc -c "$TEMPLATE/gradle.properties"
             cat "$TEMPLATE/gradle.properties"
           else
             echo "MISSING"
@@ -140,10 +148,15 @@ jobs:
         run: |
           set -euxo pipefail
 
+          echo
+          echo "============================================================"
+          echo "GENERATING ANDROID PROJECT"
+          echo "============================================================"
+
           ../base/make --target android
 
       # ============================================================
-      # 7. REPAIR WRAPPER
+      # 7. REPAIR GENERATED WRAPPER
       # ============================================================
       - name: Repair Gradle wrapper
         working-directory: paint
@@ -153,6 +166,9 @@ jobs:
 
           PROJECT="build/ArmorPaint"
           TEMPLATE="../base/sources/backends/data/android"
+
+          test -d "$PROJECT"
+          test -d "$TEMPLATE"
 
           mkdir -p "$PROJECT/gradle/wrapper"
 
@@ -170,8 +186,43 @@ jobs:
 
           chmod +x "$PROJECT/gradlew"
 
+          echo
+          echo "Generated wrapper:"
+          ls -lah \
+            "$PROJECT/gradlew" \
+            "$PROJECT/gradlew.bat" \
+            "$PROJECT/gradle/wrapper/gradle-wrapper.jar" \
+            "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
+
       # ============================================================
-      # 8. PRINT EXACT GENERATED GRADLE FILES
+      # 8. INSPECT GENERATED PROJECT
+      # ============================================================
+      - name: Inspect generated project
+        working-directory: paint
+        shell: bash
+        run: |
+          set -e
+
+          PROJECT="build/ArmorPaint"
+
+          echo
+          echo "============================================================"
+          echo "GENERATED PROJECT"
+          echo "============================================================"
+
+          test -d "$PROJECT"
+
+          echo
+          echo "Project files:"
+          find "$PROJECT" -maxdepth 8 -type f -print | sort
+
+          echo
+          echo "Project file sizes:"
+          find "$PROJECT" -maxdepth 8 -type f \
+            -printf '%s bytes  %p\n' | sort -n
+
+      # ============================================================
+      # 9. PRINT GENERATED GRADLE FILES
       # ============================================================
       - name: Inspect generated Gradle files
         working-directory: paint/build/ArmorPaint
@@ -181,25 +232,18 @@ jobs:
 
           echo
           echo "############################################################"
-          echo "# GENERATED PROJECT ROOT"
+          echo "# GENERATED GRADLE FILES"
           echo "############################################################"
 
-          pwd
-
-          echo
-          echo "############################################################"
-          echo "# COMPLETE FILE LIST"
-          echo "############################################################"
-
-          find . -maxdepth 6 -type f -print | sort
-
-          echo
-          echo "############################################################"
-          echo "# FILE SIZES"
-          echo "############################################################"
-
-          find . -maxdepth 6 -type f \
-            -printf '%s bytes  %p\n' | sort -n
+          find . -type f \
+            \( \
+              -name "*.gradle" \
+              -o -name "*.gradle.kts" \
+              -o -name "settings.gradle" \
+              -o -name "settings.gradle.kts" \
+              -o -name "gradle.properties" \
+            \) \
+            -print | sort
 
           echo
           echo "############################################################"
@@ -207,7 +251,10 @@ jobs:
           echo "############################################################"
 
           if [ -f build.gradle.kts ]; then
+            echo "SIZE:"
             wc -c build.gradle.kts
+            echo
+            echo "CONTENT:"
             cat build.gradle.kts
           else
             echo "MISSING: build.gradle.kts"
@@ -219,7 +266,10 @@ jobs:
           echo "############################################################"
 
           if [ -f settings.gradle.kts ]; then
+            echo "SIZE:"
             wc -c settings.gradle.kts
+            echo
+            echo "CONTENT:"
             cat settings.gradle.kts
           else
             echo "MISSING: settings.gradle.kts"
@@ -231,7 +281,10 @@ jobs:
           echo "############################################################"
 
           if [ -f settings.gradle ]; then
+            echo "SIZE:"
             wc -c settings.gradle
+            echo
+            echo "CONTENT:"
             cat settings.gradle
           else
             echo "MISSING: settings.gradle"
@@ -243,7 +296,10 @@ jobs:
           echo "############################################################"
 
           if [ -f gradle.properties ]; then
+            echo "SIZE:"
             wc -c gradle.properties
+            echo
+            echo "CONTENT:"
             cat gradle.properties
           else
             echo "MISSING: gradle.properties"
@@ -255,27 +311,49 @@ jobs:
           echo "############################################################"
 
           if [ -f build.gradle ]; then
+            echo "SIZE:"
             wc -c build.gradle
+            echo
+            echo "CONTENT:"
             cat build.gradle
           else
             echo "MISSING: build.gradle"
           fi
 
+      # ============================================================
+      # 10. ANDROID MANIFEST
+      # ============================================================
+      - name: Inspect Android manifests
+        working-directory: paint/build/ArmorPaint
+        shell: bash
+        run: |
+          set -e
+
           echo
           echo "############################################################"
-          echo "# GRADLE WRAPPER PROPERTIES"
+          echo "# ANDROID MANIFESTS"
           echo "############################################################"
 
-          if [ -f gradle/wrapper/gradle-wrapper.properties ]; then
-            cat gradle/wrapper/gradle-wrapper.properties
-          else
-            echo "MISSING"
-          fi
+          find . -type f \
+            -name "AndroidManifest.xml" \
+            -print | sort
+
+          while IFS= read -r file; do
+            echo
+            echo "------------------------------------------------------------"
+            echo "FILE: $file"
+            echo "------------------------------------------------------------"
+            cat "$file"
+          done < <(
+            find . -type f \
+              -name "AndroidManifest.xml" \
+              -print | sort
+          )
 
       # ============================================================
-      # 9. SEARCH FOR ANDROID BUILD CONFIGURATION
+      # 11. SEARCH FOR ANDROID GRADLE CONFIGURATION
       # ============================================================
-      - name: Search generated project for Android configuration
+      - name: Search Android configuration
         working-directory: paint/build/ArmorPaint
         shell: bash
         run: |
@@ -287,35 +365,52 @@ jobs:
           echo "############################################################"
 
           echo
-          echo "Android plugin references:"
+          echo "Android Gradle plugin:"
           grep -Rni \
             -E \
-            "com.android.application|com.android.library|android \{|compileSdk|minSdk|targetSdk|namespace|applicationId" \
+            "com.android.application|com.android.library|com.android.base" \
             . \
             --exclude-dir=.gradle \
-            --exclude=gradle-wrapper.jar \
+            --exclude="gradle-wrapper.jar" \
             || true
 
           echo
-          echo "Kotlin references:"
+          echo "Android configuration:"
           grep -Rni \
             -E \
-            "kotlin|org.jetbrains.kotlin" \
+            "compileSdk|minSdk|targetSdk|namespace|applicationId" \
             . \
             --exclude-dir=.gradle \
-            --exclude=gradle-wrapper.jar \
+            --exclude="gradle-wrapper.jar" \
+            || true
+
+          echo
+          echo "Kotlin:"
+          grep -Rni \
+            -E \
+            "org.jetbrains.kotlin|kotlin" \
+            . \
+            --exclude-dir=.gradle \
+            --exclude="gradle-wrapper.jar" \
             || true
 
       # ============================================================
-      # 10. GRADLE PROJECT/TASK CHECK
+      # 12. GRADLE PROJECTS
       # ============================================================
-      - name: Check Gradle project
+      - name: Inspect Gradle projects
         working-directory: paint/build/ArmorPaint
         shell: bash
         run: |
           set -e
 
           chmod +x gradlew
+
+          echo
+          echo "############################################################"
+          echo "# GRADLE VERSION"
+          echo "############################################################"
+
+          ./gradlew --version
 
           echo
           echo "############################################################"
@@ -326,25 +421,96 @@ jobs:
 
           echo
           echo "############################################################"
-          echo "# ALL TASKS"
+          echo "# ALL GRADLE TASKS"
           echo "############################################################"
 
           ./gradlew tasks --all --no-daemon
 
       # ============================================================
-      # 11. STOP
+      # 13. GRADLE PROPERTIES
+      # ============================================================
+      - name: Inspect Gradle properties
+        working-directory: paint/build/ArmorPaint
+        shell: bash
+        run: |
+          set -e
+
+          echo
+          echo "############################################################"
+          echo "# GRADLE PROPERTIES"
+          echo "############################################################"
+
+          ./gradlew properties --no-daemon
+
+      # ============================================================
+      # 14. INSPECT ARMORPAINT ANDROID GENERATOR
+      # ============================================================
+      - name: Inspect Android generator
+        shell: bash
+        run: |
+          set -e
+
+          echo
+          echo "############################################################"
+          echo "# ANDROID GENERATOR"
+          echo "############################################################"
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("base/tools/make.js")
+
+          if not path.exists():
+              raise SystemExit("make.js not found")
+
+          lines = path.read_text().splitlines()
+
+          keywords = [
+              "class AndroidExporter",
+              "build.gradle.kts",
+              "settings.gradle.kts",
+              "gradle.properties",
+              "gradlew",
+              "AndroidManifest",
+              "get_text_data",
+              "get_binary_data"
+          ]
+
+          printed = set()
+
+          for i, line in enumerate(lines):
+              if any(k.lower() in line.lower() for k in keywords):
+                  start = max(0, i - 5)
+                  end = min(len(lines), i + 8)
+
+                  key = (start, end)
+
+                  if key in printed:
+                      continue
+
+                  printed.add(key)
+
+                  print()
+                  print(f"--- lines {start + 1}-{end} ---")
+
+                  for n in range(start, end):
+                      print(f"{n + 1}: {lines[n]}")
+          PY
+
+      # ============================================================
+      # 15. STOP
       # ============================================================
       - name: Stop before APK build
         shell: bash
         run: |
           echo
           echo "############################################################"
-          echo "# BUILD #22 COMPLETE"
+          echo "# BUILD #22 DIAGNOSTIC COMPLETE"
           echo "############################################################"
           echo
           echo "NO APK BUILD WAS ATTEMPTED."
           echo
-          echo "We now have the exact generated Gradle configuration."
+          echo "All generated Android Gradle configuration has been printed."
           echo
 
           exit 1
