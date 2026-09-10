@@ -42,14 +42,14 @@ jobs:
           echo "PATCHING make.js"
           echo "============================================================"
 
-          FILE="../base/tools/make.js"
+          FILE="../base/make.js"
 
           grep -n "function get_text_data" "$FILE" || true
           grep -n "function get_binary_data" "$FILE" || true
 
-          # The Android exporter must read templates from makedir,
-          # not irondir.
-          sed -i 's#irondir + "/sources/backends/data/#makedir + "/sources/backends/data/#g' "$FILE"
+          sed -i \
+            's#irondir + "/sources/backends/data/#makedir + "/sources/backends/data/#g' \
+            "$FILE"
 
           echo
           echo "After patch:"
@@ -96,9 +96,9 @@ jobs:
           cp "$TEMPLATE/gradlew" gradlew
           cp "$TEMPLATE/gradlew.bat" gradlew.bat
           cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.jar" \
-             gradle/wrapper/gradle-wrapper.jar
+            gradle/wrapper/gradle-wrapper.jar
           cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.properties" \
-             gradle/wrapper/gradle-wrapper.properties
+            gradle/wrapper/gradle-wrapper.properties
 
           chmod +x gradlew
 
@@ -125,21 +125,28 @@ jobs:
           echo "============================================================"
           echo "ROOT DIRECTORY FILES"
           echo "============================================================"
-          find . -maxdepth 2 -type f -printf '%p (%s bytes)\n' \
+
+          find . -maxdepth 2 -type f \
+            -printf '%p (%s bytes)\n' \
             | sort
 
           echo
           echo "============================================================"
           echo "ROOT DIRECTORY FOLDERS"
           echo "============================================================"
+
           find . -maxdepth 2 -type d -print | sort
 
           echo
           echo "============================================================"
           echo "build.gradle.kts"
           echo "============================================================"
+
           if [ -f build.gradle.kts ]; then
+            echo "SIZE:"
             wc -c build.gradle.kts
+            echo
+            echo "CONTENT:"
             nl -ba build.gradle.kts
           else
             echo "MISSING: build.gradle.kts"
@@ -149,8 +156,12 @@ jobs:
           echo "============================================================"
           echo "settings.gradle.kts"
           echo "============================================================"
+
           if [ -f settings.gradle.kts ]; then
+            echo "SIZE:"
             wc -c settings.gradle.kts
+            echo
+            echo "CONTENT:"
             nl -ba settings.gradle.kts
           else
             echo "MISSING: settings.gradle.kts"
@@ -160,8 +171,12 @@ jobs:
           echo "============================================================"
           echo "settings.gradle"
           echo "============================================================"
+
           if [ -f settings.gradle ]; then
+            echo "SIZE:"
             wc -c settings.gradle
+            echo
+            echo "CONTENT:"
             nl -ba settings.gradle
           else
             echo "MISSING: settings.gradle"
@@ -171,8 +186,12 @@ jobs:
           echo "============================================================"
           echo "gradle.properties"
           echo "============================================================"
+
           if [ -f gradle.properties ]; then
+            echo "SIZE:"
             wc -c gradle.properties
+            echo
+            echo "CONTENT:"
             nl -ba gradle.properties
           else
             echo "MISSING: gradle.properties"
@@ -180,25 +199,15 @@ jobs:
 
           echo
           echo "============================================================"
-          echo "ANDROID MANIFEST FILES"
+          echo "ANDROID MANIFEST / GRADLE FILES"
           echo "============================================================"
+
           find . -type f \( \
             -name "AndroidManifest.xml" -o \
             -name "*.gradle" -o \
             -name "*.gradle.kts" \
-          \) -printf '%p (%s bytes)\n' | sort
-
-          echo
-          echo "============================================================"
-          echo "ANDROID-RELATED FILE CONTENT"
-          echo "============================================================"
-
-          find . -type f \( \
-            -name "build.gradle" -o \
-            -name "build.gradle.kts" -o \
-            -name "settings.gradle" -o \
-            -name "settings.gradle.kts" \
-            \) -print | sort
+          \) -printf '%p (%s bytes)\n' \
+            | sort
 
           echo
           echo "============================================================"
@@ -218,7 +227,7 @@ jobs:
             gradle/wrapper/gradle-wrapper.properties
           do
             if [ -f "$TEMPLATE/$f" ]; then
-              printf "%-45s " "$f"
+              printf "%-50s " "$f"
               wc -c < "$TEMPLATE/$f"
             else
               echo "MISSING TEMPLATE: $f"
@@ -241,7 +250,7 @@ jobs:
             gradle/wrapper/gradle-wrapper.properties
           do
             if [ -f "$f" ]; then
-              printf "%-45s " "$f"
+              printf "%-50s " "$f"
               wc -c < "$f"
             else
               echo "MISSING GENERATED: $f"
@@ -255,7 +264,7 @@ jobs:
 
           grep -n -A45 -B10 \
             "class AndroidExporter" \
-            ../../../base/tools/make.js \
+            ../../../base/make.js \
             | head -100
 
           echo
@@ -278,26 +287,4 @@ jobs:
           echo "END OF DIAGNOSTIC"
           echo "============================================================"
 
-      - name: Build APK
-        working-directory: paint/build/ArmorPaint
-        run: |
-          set -euxo pipefail
-
-          echo "============================================================"
-          echo "BUILDING ARMORPAINT APK"
-          echo "============================================================"
-
-          ./gradlew assembleRelease
-
-          echo
-          echo "============================================================"
-          echo "BUILD COMPLETE"
-          echo "============================================================"
-          echo "APK location:"
-          find . -name "*.apk" -type f -print
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: armorpaint-apk
-          path: paint/build/ArmorPaint/app/build/outputs/apk/release/*.apk
+          exit 1
