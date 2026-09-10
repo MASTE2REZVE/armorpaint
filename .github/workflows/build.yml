@@ -278,6 +278,26 @@ jobs:
           echo "END OF DIAGNOSTIC"
           echo "============================================================"
 
-          # Intentional failure so GitHub stops here and does NOT
-          # waste time attempting an APK build.
-          exit 1
+      - name: Build APK
+        working-directory: paint/build/ArmorPaint
+        run: |
+          set -euxo pipefail
+
+          echo "============================================================"
+          echo "BUILDING ARMORPAINT APK"
+          echo "============================================================"
+
+          ./gradlew assembleRelease
+
+          echo
+          echo "============================================================"
+          echo "BUILD COMPLETE"
+          echo "============================================================"
+          echo "APK location:"
+          find . -name "*.apk" -type f -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: armorpaint-apk
+          path: paint/build/ArmorPaint/app/build/outputs/apk/release/*.apk
