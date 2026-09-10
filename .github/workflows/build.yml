@@ -33,27 +33,50 @@ jobs:
 
           yes | sdkmanager --licenses || true
 
-      - name: Patch Android template path
-        working-directory: paint
+      - name: Locate ArmorPaint build files
         run: |
           set -euxo pipefail
 
           echo "============================================================"
-          echo "PATCHING make.js"
+          echo "REPOSITORY ROOT"
           echo "============================================================"
 
-          FILE="../base/make.js"
-
-          grep -n "function get_text_data" "$FILE" || true
-          grep -n "function get_binary_data" "$FILE" || true
-
-          sed -i \
-            's#irondir + "/sources/backends/data/#makedir + "/sources/backends/data/#g' \
-            "$FILE"
+          pwd
+          ls -la
 
           echo
-          echo "After patch:"
-          grep -n "sources/backends/data" "$FILE" | head -20 || true
+          echo "============================================================"
+          echo "LOCATING make.js"
+          echo "============================================================"
+
+          find . -type f -name "make.js" -print
+
+          echo
+          echo "============================================================"
+          echo "LOCATING Android template"
+          echo "============================================================"
+
+          find . -type d \
+            -path "*/sources/backends/data/android" \
+            -print
+
+          echo
+          echo "============================================================"
+          echo "LOCATING AndroidExporter"
+          echo "============================================================"
+
+          grep -Rni \
+            "class AndroidExporter" \
+            . \
+            --include="make.js" \
+            2>/dev/null || true
+
+          echo
+          echo "============================================================"
+          echo "TOP-LEVEL DIRECTORIES"
+          echo "============================================================"
+
+          find . -maxdepth 2 -type d -print | sort
 
       - name: Generate Android project
         working-directory: paint
@@ -69,61 +92,21 @@ jobs:
           echo
           echo "Generation finished."
 
-      - name: Repair Gradle Wrapper
-        working-directory: paint/build/ArmorPaint
-        run: |
-          set -euxo pipefail
-
-          echo "============================================================"
-          echo "REPAIRING GRADLE WRAPPER"
-          echo "============================================================"
-
-          TEMPLATE="../../../base/sources/backends/data/android"
-
-          echo "Generated project:"
-          pwd
-
-          echo
-          echo "Wrapper files before repair:"
-          find gradle -maxdepth 3 -type f -print 2>/dev/null || true
-          ls -l gradlew gradlew.bat 2>/dev/null || true
-
-          echo
-          echo "Copying official wrapper files..."
-
-          mkdir -p gradle/wrapper
-
-          cp "$TEMPLATE/gradlew" gradlew
-          cp "$TEMPLATE/gradlew.bat" gradlew.bat
-          cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.jar" \
-            gradle/wrapper/gradle-wrapper.jar
-          cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.properties" \
-            gradle/wrapper/gradle-wrapper.properties
-
-          chmod +x gradlew
-
-          echo
-          echo "Wrapper files after repair:"
-          ls -lh gradlew gradlew.bat
-          ls -lh gradle/wrapper/
-
-      - name: Inspect Generated Android Project
+      - name: Inspect generated Android project
         working-directory: paint/build/ArmorPaint
         run: |
           set +e
 
           echo
           echo "============================================================"
-          echo "ARMORPAINT ANDROID PROJECT DIAGNOSTIC"
+          echo "GENERATED ANDROID PROJECT"
           echo "============================================================"
 
-          echo
-          echo "PROJECT DIRECTORY:"
           pwd
 
           echo
           echo "============================================================"
-          echo "ROOT DIRECTORY FILES"
+          echo "ROOT FILES"
           echo "============================================================"
 
           find . -maxdepth 2 -type f \
@@ -132,10 +115,12 @@ jobs:
 
           echo
           echo "============================================================"
-          echo "ROOT DIRECTORY FOLDERS"
+          echo "ROOT FOLDERS"
           echo "============================================================"
 
-          find . -maxdepth 2 -type d -print | sort
+          find . -maxdepth 2 -type d \
+            -print \
+            | sort
 
           echo
           echo "============================================================"
@@ -147,9 +132,9 @@ jobs:
             wc -c build.gradle.kts
             echo
             echo "CONTENT:"
-            nl -ba build.gradle.kts
+            cat build.gradle.kts
           else
-            echo "MISSING: build.gradle.kts"
+            echo "MISSING"
           fi
 
           echo
@@ -162,9 +147,9 @@ jobs:
             wc -c settings.gradle.kts
             echo
             echo "CONTENT:"
-            nl -ba settings.gradle.kts
+            cat settings.gradle.kts
           else
-            echo "MISSING: settings.gradle.kts"
+            echo "MISSING"
           fi
 
           echo
@@ -177,9 +162,9 @@ jobs:
             wc -c settings.gradle
             echo
             echo "CONTENT:"
-            nl -ba settings.gradle
+            cat settings.gradle
           else
-            echo "MISSING: settings.gradle"
+            echo "MISSING"
           fi
 
           echo
@@ -192,95 +177,31 @@ jobs:
             wc -c gradle.properties
             echo
             echo "CONTENT:"
-            nl -ba gradle.properties
+            cat gradle.properties
           else
-            echo "MISSING: gradle.properties"
+            echo "MISSING"
           fi
 
           echo
           echo "============================================================"
-          echo "ANDROID MANIFEST / GRADLE FILES"
+          echo "ALL GRADLE FILES"
           echo "============================================================"
 
           find . -type f \( \
-            -name "AndroidManifest.xml" -o \
-            -name "*.gradle" -o \
-            -name "*.gradle.kts" \
-          \) -printf '%p (%s bytes)\n' \
+            -name "*.gradle" \
+            -o -name "*.gradle.kts" \
+          \) \
+            -printf '%p (%s bytes)\n' \
             | sort
 
           echo
           echo "============================================================"
-          echo "GENERATOR TEMPLATE FILE SIZES"
+          echo "ANDROID MANIFESTS"
           echo "============================================================"
 
-          TEMPLATE="../../../base/sources/backends/data/android"
-
-          for f in \
-            build.gradle.kts \
-            gradle.properties \
-            settings.gradle.kts \
-            settings.gradle \
-            gradlew \
-            gradlew.bat \
-            gradle/wrapper/gradle-wrapper.jar \
-            gradle/wrapper/gradle-wrapper.properties
-          do
-            if [ -f "$TEMPLATE/$f" ]; then
-              printf "%-50s " "$f"
-              wc -c < "$TEMPLATE/$f"
-            else
-              echo "MISSING TEMPLATE: $f"
-            fi
-          done
-
-          echo
-          echo "============================================================"
-          echo "GENERATED FILE SIZES"
-          echo "============================================================"
-
-          for f in \
-            build.gradle.kts \
-            gradle.properties \
-            settings.gradle.kts \
-            settings.gradle \
-            gradlew \
-            gradlew.bat \
-            gradle/wrapper/gradle-wrapper.jar \
-            gradle/wrapper/gradle-wrapper.properties
-          do
-            if [ -f "$f" ]; then
-              printf "%-50s " "$f"
-              wc -c < "$f"
-            else
-              echo "MISSING GENERATED: $f"
-            fi
-          done
-
-          echo
-          echo "============================================================"
-          echo "ANDROID EXPORTER SECTION FROM make.js"
-          echo "============================================================"
-
-          grep -n -A45 -B10 \
-            "class AndroidExporter" \
-            ../../../base/make.js \
-            | head -100
-
-          echo
-          echo "============================================================"
-          echo "IMPORTANT GRADLE REFERENCES"
-          echo "============================================================"
-
-          grep -RniE \
-            "com.android|android.application|android.library|include\\(|pluginManagement|rootProject" \
-            . \
-            --include="*.gradle" \
-            --include="*.gradle.kts" \
-            --include="settings.gradle" \
-            --include="settings.gradle.kts" \
-            2>/dev/null \
-            | head -100
+          find . -type f \
+            -name "AndroidManifest.xml" \
+            -print
 
           echo
           echo "============================================================"
