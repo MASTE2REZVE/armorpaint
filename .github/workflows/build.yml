@@ -9,30 +9,18 @@ jobs:
 
     steps:
 
-      # ==================================================
-      # 1. Checkout ArmorPaint
-      # ==================================================
       - name: Checkout ArmorPaint
         uses: actions/checkout@v4
 
-      # ==================================================
-      # 2. Set up Java 21
-      # ==================================================
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      # ==================================================
-      # 3. Set up Android SDK
-      # ==================================================
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # ==================================================
-      # 4. Install Android SDK components
-      # ==================================================
       - name: Install Android SDK components
         run: |
           yes | sdkmanager --licenses || true
@@ -44,9 +32,6 @@ jobs:
             "ndk;29.0.14206865" \
             "cmake;4.0.2"
 
-      # ==================================================
-      # 5. Fix ArmorPaint template paths
-      # ==================================================
       - name: Fix ArmorPaint template paths
         shell: bash
         run: |
@@ -61,7 +46,7 @@ jobs:
 
           count = text.count(old)
 
-          print(f"Found {count} template path(s) using irondir.")
+          print(f"Found {count} incorrect template path(s).")
 
           if count > 0:
               text = text.replace(old, new)
@@ -71,9 +56,6 @@ jobs:
               print("No incorrect template paths found.")
           PY
 
-      # ==================================================
-      # 6. Verify Android template
-      # ==================================================
       - name: Verify Android template
         run: |
           set -e
@@ -95,36 +77,21 @@ jobs:
             "base/sources/backends/data/android/gradle/wrapper/gradle-wrapper.properties"
 
           echo
-          echo "Android template is valid."
+          echo "Android template:"
+          ls -lah "base/sources/backends/data/android"
 
           echo
-          echo "Gradle wrapper files:"
-          ls -lah \
-            "base/sources/backends/data/android/gradle/wrapper"
+          echo "Wrapper:"
+          ls -lah "base/sources/backends/data/android/gradle/wrapper"
 
-      # ==================================================
-      # 7. Generate Android project
-      # ==================================================
       - name: Generate Android project
         working-directory: paint
         shell: bash
         run: |
           set -euxo pipefail
 
-          echo "Current directory:"
-          pwd
-
-          echo
-          echo "Generating ArmorPaint Android project..."
-
           ../base/make --target android
 
-          echo
-          echo "ArmorPaint Android generation completed."
-
-      # ==================================================
-      # 8. Repair generated Gradle wrapper
-      # ==================================================
       - name: Repair generated Gradle wrapper
         working-directory: paint
         shell: bash
@@ -134,37 +101,22 @@ jobs:
           PROJECT="build/ArmorPaint"
           TEMPLATE="../base/sources/backends/data/android"
 
-          echo "Project: $PROJECT"
-          echo "Template: $TEMPLATE"
-
           test -d "$PROJECT"
           test -d "$TEMPLATE"
 
           mkdir -p "$PROJECT/gradle/wrapper"
 
-          echo
-          echo "Copying gradlew..."
-
           cp \
             "$TEMPLATE/gradlew" \
             "$PROJECT/gradlew"
-
-          echo
-          echo "Copying gradlew.bat..."
 
           cp \
             "$TEMPLATE/gradlew.bat" \
             "$PROJECT/gradlew.bat"
 
-          echo
-          echo "Copying Gradle wrapper JAR..."
-
           cp \
             "$TEMPLATE/gradle/wrapper/gradle-wrapper.jar" \
             "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
-
-          echo
-          echo "Copying Gradle wrapper properties..."
 
           cp \
             "$TEMPLATE/gradle/wrapper/gradle-wrapper.properties" \
@@ -173,131 +125,88 @@ jobs:
           chmod +x "$PROJECT/gradlew"
 
           echo
-          echo "First lines of gradlew:"
-          head -n 5 "$PROJECT/gradlew"
-
-          echo
-          echo "Gradle wrapper directory:"
-          ls -lah "$PROJECT/gradle/wrapper"
-
-          echo
-          echo "Checking files..."
-
-          test -s "$PROJECT/gradlew"
-          test -s "$PROJECT/gradlew.bat"
-          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
-          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
-
-          echo
-          echo "Gradle wrapper repaired successfully."
-
-      # ==================================================
-      # 9. Verify generated Android project
-      # ==================================================
-      - name: Verify generated Android project
-        working-directory: paint
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          PROJECT="build/ArmorPaint"
-
-          echo "Checking generated Android project..."
-
-          test -d "$PROJECT"
-
-          test -s "$PROJECT/gradlew"
-
-          test -s "$PROJECT/gradlew.bat"
-
-          test -s \
-            "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
-
-          test -s \
-            "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
-
-          echo
-          echo "Generated Android project is ready."
+          echo "Generated project files:"
+          find "$PROJECT" \
+            -maxdepth 3 \
+            -type f \
+            -print | sort
 
           echo
           echo "Gradle wrapper:"
           ls -lah "$PROJECT/gradle/wrapper"
 
-      # ==================================================
-      # 10. Make Gradle executable
-      # ==================================================
-      - name: Make Gradle executable
+      - name: Inspect Gradle project
         working-directory: paint/build/ArmorPaint
+        shell: bash
         run: |
+          set -euxo pipefail
+
           chmod +x gradlew
 
-      # ==================================================
-      # 11. Check Gradle
-      # ==================================================
-      - name: Check Gradle
-        working-directory: paint/build/ArmorPaint
-        shell: bash
-        run: |
+          echo
+          echo "========================================"
+          echo "GRADLE VERSION"
+          echo "========================================"
+
           ./gradlew --version
 
-      # ==================================================
-      # 12. Show available Gradle tasks
-      # ==================================================
-      - name: Show Gradle tasks
-        working-directory: paint/build/ArmorPaint
-        shell: bash
-        run: |
-          ./gradlew tasks \
+          echo
+          echo "========================================"
+          echo "GRADLE PROJECTS"
+          echo "========================================"
+
+          ./gradlew projects \
             --no-daemon
 
-      # ==================================================
-      # 13. Build Android Debug APK
-      # ==================================================
-      - name: Build APK
+          echo
+          echo "========================================"
+          echo "ALL GRADLE TASKS"
+          echo "========================================"
+
+          ./gradlew tasks \
+            --all \
+            --no-daemon
+
+      - name: Inspect generated Android files
         working-directory: paint/build/ArmorPaint
         shell: bash
         run: |
-          ./gradlew :app:assembleDebug \
-            --no-daemon \
-            --stacktrace
+          echo
+          echo "========================================"
+          echo "BUILD FILES"
+          echo "========================================"
 
-      # ==================================================
-      # 14. Find APK
-      # ==================================================
-      - name: Find APK
-        shell: bash
-        run: |
-          set -e
-
-          echo "Searching for APK..."
-
-          find \
-            paint/build/ArmorPaint/app/build/outputs \
-            -type f \
-            -name "*.apk" \
-            -print
-
-          APK="$(find \
-            paint/build/ArmorPaint/app/build/outputs \
-            -type f \
-            -name "*.apk" \
-            -print -quit)"
-
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK was not generated."
-            exit 1
-          fi
+          find . \
+            -maxdepth 3 \
+            \( \
+              -name "build.gradle" \
+              -o -name "build.gradle.kts" \
+              -o -name "settings.gradle" \
+              -o -name "settings.gradle.kts" \
+              -o -name "AndroidManifest.xml" \
+              -o -name "gradle.properties" \
+            \) \
+            -print | sort
 
           echo
-          echo "APK generated successfully:"
-          echo "$APK"
+          echo "========================================"
+          echo "DIRECTORY TREE"
+          echo "========================================"
 
-      # ==================================================
-      # 15. Upload APK
-      # ==================================================
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ArmorPaint-Android-APK
-          path: paint/build/ArmorPaint/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          find . \
+            -maxdepth 3 \
+            -type d \
+            -print | sort
+
+      - name: Stop before build
+        shell: bash
+        run: |
+          echo
+          echo "========================================"
+          echo "DIAGNOSTIC COMPLETE"
+          echo "========================================"
+          echo
+          echo "The workflow intentionally stops here."
+          echo "We need the Gradle project/task information."
+          echo "No APK build was attempted."
+          exit 1
