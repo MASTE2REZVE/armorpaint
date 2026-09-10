@@ -42,7 +42,7 @@ jobs:
           echo "PATCHING make.js"
           echo "============================================================"
 
-          FILE="../base/make.js"
+          FILE="../base/tools/make.js"
 
           grep -n "function get_text_data" "$FILE" || true
           grep -n "function get_binary_data" "$FILE" || true
@@ -255,7 +255,7 @@ jobs:
 
           grep -n -A45 -B10 \
             "class AndroidExporter" \
-            ../../../base/make.js \
+            ../../../base/tools/make.js \
             | head -100
 
           echo
