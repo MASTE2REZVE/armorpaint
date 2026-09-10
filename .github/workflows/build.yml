@@ -31,7 +31,7 @@ jobs:
             "ndk;29.0.14206865" \
             "cmake;4.0.2"
 
-      - name: Fix ArmorPaint Android template paths
+      - name: Fix ArmorPaint template paths
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,37 +42,63 @@ jobs:
           old = 'return fs_readfile(irondir + "/sources/backends/data/" + p);'
           new = 'return fs_readfile(makedir + "/sources/backends/data/" + p);'
 
-          if old in s:
-              s = s.replace(old, new)
-              p.write_text(s)
-              print("Fixed get_text_data() path.")
-          else:
-              print("Expected get_text_data() line was not found.")
+          count = s.count(old)
+
+          print(f"Found {count} incorrect template path(s).")
+
+          if count == 0:
+              raise SystemExit("ERROR: Expected template path was not found.")
+
+          s = s.replace(old, new)
+
+          p.write_text(s)
+
+          print("Both template readers now use makedir.")
           PY
+
+      - name: Verify Android template
+        run: |
+          echo "Checking ArmorPaint Android template..."
+
+          test -d base/sources/backends/data/android
+          test -d base/sources/backends/data/android/gradle/wrapper
+
+          test -s base/sources/backends/data/android/gradlew
+          test -s base/sources/backends/data/android/gradle/wrapper/gradle-wrapper.jar
+          test -s base/sources/backends/data/android/gradle/wrapper/gradle-wrapper.properties
+
+          echo "Android template looks valid."
+
+          echo "Template contents:"
+          find base/sources/backends/data/android -maxdepth 3 -type f | sort
 
       - name: Generate Android project
         working-directory: paint
         run: |
           ../base/make --target android
 
-          echo "Checking generated Android project..."
+      - name: Verify generated Android project
+        working-directory: paint
+        run: |
+          echo "Checking generated project..."
+
           test -d build/ArmorPaint
           test -f build/ArmorPaint/gradlew
 
-          echo "Checking Gradle wrapper..."
-          ls -lah build/ArmorPaint/gradle/wrapper/
+          echo "Generated Gradle wrapper:"
+          find build/ArmorPaint/gradle -maxdepth 3 -type f -print
 
           test -s build/ArmorPaint/gradle/wrapper/gradle-wrapper.jar
           test -s build/ArmorPaint/gradle/wrapper/gradle-wrapper.properties
 
-          echo "Gradle wrapper is present."
+          echo "Generated Gradle wrapper is valid."
 
       - name: Make Gradle executable
         working-directory: paint/build/ArmorPaint
         run: |
           chmod +x gradlew
 
-      - name: Show Gradle version
+      - name: Check Gradle
         working-directory: paint/build/ArmorPaint
         run: |
           ./gradlew --version
@@ -82,12 +108,10 @@ jobs:
         run: |
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Verify APK
+      - name: Find APK
         run: |
-          echo "Searching for APK..."
+          echo "APK files:"
           find paint/build/ArmorPaint/app/build/outputs -type f -name "*.apk" -print
-
-          test -n "$(find paint/build/ArmorPaint/app/build/outputs -type f -name "*.apk" -print -quit)"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
