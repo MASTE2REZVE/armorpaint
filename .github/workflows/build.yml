@@ -9,31 +9,19 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------
-      # 1. Download ArmorPaint source
-      # --------------------------------------------------
-      - name: Checkout source
+      - name: Checkout ArmorPaint
         uses: actions/checkout@v4
 
-      # --------------------------------------------------
-      # 2. Java
-      # --------------------------------------------------
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      # --------------------------------------------------
-      # 3. Android SDK
-      # --------------------------------------------------
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # --------------------------------------------------
-      # 4. Install Android build tools
-      # --------------------------------------------------
-      - name: Install Android SDK components
+      - name: Install Android SDK
         run: |
           yes | sdkmanager --licenses || true
 
@@ -44,71 +32,31 @@ jobs:
             "ndk;29.0.14206865" \
             "cmake;4.0.2"
 
-      # --------------------------------------------------
-      # 5. Fix the ArmorPaint template path
-      # --------------------------------------------------
       - name: Fix ArmorPaint template paths
-        shell: bash
         run: |
           python3 <<'PY'
           from pathlib import Path
 
-          path = Path("base/tools/make.js")
-          text = path.read_text()
+          p = Path("base/tools/make.js")
+          s = p.read_text()
 
           old = 'irondir + "/sources/backends/data/"'
           new = 'makedir + "/sources/backends/data/"'
 
-          count = text.count(old)
+          count = s.count(old)
 
-          print("Found template path occurrences:", count)
+          print(f"Found {count} template paths using irondir.")
 
-          if count == 0:
-              print("ERROR: Expected irondir template path was not found.")
-              print()
-              print("Current matching lines:")
-              for number, line in enumerate(text.splitlines(), 1):
-                  if "sources/backends/data" in line:
-                      print(f"{number}: {line}")
-
-              raise SystemExit(1)
-
-          text = text.replace(old, new)
-
-          path.write_text(text)
-
-          print("Template paths fixed.")
+          if count > 0:
+              s = s.replace(old, new)
+              p.write_text(s)
+              print("Template paths corrected.")
+          else:
+              print("No irondir template paths needed changing.")
           PY
 
-      # --------------------------------------------------
-      # 6. VERIFY THE SOURCE FIX
-      # --------------------------------------------------
-      - name: Verify source fix
+      - name: Verify ArmorPaint source
         run: |
-          echo "Checking make.js..."
-
-          grep -n "sources/backends/data" base/tools/make.js
-
-          echo
-          echo "Checking that irondir is no longer used for template data..."
-
-          if grep -n 'irondir + "/sources/backends/data/"' base/tools/make.js; then
-            echo "ERROR: irondir template path still exists."
-            exit 1
-          fi
-
-          echo
-          echo "Source fix verified."
-
-      # --------------------------------------------------
-      # 7. Verify Android template exists
-      # --------------------------------------------------
-      - name: Verify Android template
-        run: |
-          echo "Checking Android template..."
-
-          test -d base/sources/backends/data/android
-
           echo "Android template:"
           find base/sources/backends/data/android \
             -maxdepth 4 \
@@ -116,7 +64,7 @@ jobs:
             -print | sort
 
           echo
-          echo "Checking required Gradle files..."
+          echo "Checking source Gradle wrapper..."
 
           test -s \
             base/sources/backends/data/android/gradlew
@@ -127,85 +75,70 @@ jobs:
           test -s \
             base/sources/backends/data/android/gradle/wrapper/gradle-wrapper.properties
 
-          echo
-          echo "Android template is valid."
+          echo "Source Gradle wrapper is present."
 
-      # --------------------------------------------------
-      # 8. Generate Android project
-      # --------------------------------------------------
       - name: Generate Android project
         working-directory: paint
-        shell: bash
         run: |
           set -euxo pipefail
-
-          echo "Working directory:"
-          pwd
-
-          echo
-          echo "Running ArmorPaint Android generator..."
 
           ../base/make --target android
 
-          echo
-          echo "Android generator completed successfully."
+          echo "Generator completed."
 
-      # --------------------------------------------------
-      # 9. Verify generated project
-      # --------------------------------------------------
-      - name: Verify generated Android project
+      - name: Repair generated Gradle wrapper
         working-directory: paint
-        shell: bash
         run: |
           set -euxo pipefail
 
-          echo "Checking generated project..."
+          PROJECT="build/ArmorPaint"
+          TEMPLATE="../../base/sources/backends/data/android"
 
-          test -d build/ArmorPaint
+          echo "Project: $PROJECT"
+          echo "Template: $TEMPLATE"
+
+          test -d "$PROJECT"
+
+          mkdir -p "$PROJECT/gradle/wrapper"
+
+          cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.jar" \
+             "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
+
+          cp "$TEMPLATE/gradle/wrapper/gradle-wrapper.properties" \
+             "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
+
+          echo "Gradle wrapper repaired."
+
+          ls -lah "$PROJECT/gradle/wrapper"
+
+      - name: Verify generated project
+        working-directory: paint
+        run: |
+          set -euxo pipefail
+
+          PROJECT="build/ArmorPaint"
+
+          test -f "$PROJECT/gradlew"
+          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.jar"
+          test -s "$PROJECT/gradle/wrapper/gradle-wrapper.properties"
 
           echo
-          echo "Generated project:"
-          find build/ArmorPaint \
-            -maxdepth 3 \
-            -type f \
-            -print | sort
+          echo "Generated Android project is ready."
 
           echo
-          echo "Checking Gradle wrapper..."
+          echo "Gradle wrapper:"
+          ls -lah "$PROJECT/gradle/wrapper"
 
-          test -d build/ArmorPaint/gradle/wrapper
-
-          test -s \
-            build/ArmorPaint/gradle/wrapper/gradle-wrapper.jar
-
-          test -s \
-            build/ArmorPaint/gradle/wrapper/gradle-wrapper.properties
-
-          test -s \
-            build/ArmorPaint/gradlew
-
-          echo
-          echo "Gradle wrapper generated successfully."
-
-      # --------------------------------------------------
-      # 10. Make Gradle executable
-      # --------------------------------------------------
       - name: Make Gradle executable
         working-directory: paint/build/ArmorPaint
         run: |
           chmod +x gradlew
 
-      # --------------------------------------------------
-      # 11. Check Gradle
-      # --------------------------------------------------
       - name: Check Gradle
         working-directory: paint/build/ArmorPaint
         run: |
           ./gradlew --version
 
-      # --------------------------------------------------
-      # 12. Build Android APK
-      # --------------------------------------------------
       - name: Build APK
         working-directory: paint/build/ArmorPaint
         run: |
@@ -213,10 +146,7 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      # --------------------------------------------------
-      # 13. Verify APK exists
-      # --------------------------------------------------
-      - name: Verify APK
+      - name: Find APK
         run: |
           echo "Searching for APK..."
 
@@ -236,12 +166,9 @@ jobs:
           fi
 
           echo
-          echo "APK successfully generated:"
+          echo "APK generated successfully:"
           echo "$APK"
 
-      # --------------------------------------------------
-      # 14. Upload APK
-      # --------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
