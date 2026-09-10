@@ -11,7 +11,7 @@ jobs:
       - name: Checkout ArmorPaint
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -22,24 +22,72 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          sdkmanager "platform-tools" \
-                     "platforms;android-36" \
-                     "build-tools;36.0.0" \
-                     "ndk;29.0.14206865" \
-                     "cmake;4.0.2"
+          yes | sdkmanager --licenses || true
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14206865" \
+            "cmake;4.0.2"
+
+      - name: Fix ArmorPaint Android template paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("base/tools/make.js")
+          s = p.read_text()
+
+          old = 'return fs_readfile(irondir + "/sources/backends/data/" + p);'
+          new = 'return fs_readfile(makedir + "/sources/backends/data/" + p);'
+
+          if old in s:
+              s = s.replace(old, new)
+              p.write_text(s)
+              print("Fixed get_text_data() path.")
+          else:
+              print("Expected get_text_data() line was not found.")
+          PY
 
       - name: Generate Android project
         working-directory: paint
         run: |
           ../base/make --target android
 
+          echo "Checking generated Android project..."
+          test -d build/ArmorPaint
+          test -f build/ArmorPaint/gradlew
+
+          echo "Checking Gradle wrapper..."
+          ls -lah build/ArmorPaint/gradle/wrapper/
+
+          test -s build/ArmorPaint/gradle/wrapper/gradle-wrapper.jar
+          test -s build/ArmorPaint/gradle/wrapper/gradle-wrapper.properties
+
+          echo "Gradle wrapper is present."
+
       - name: Make Gradle executable
         working-directory: paint/build/ArmorPaint
-        run: chmod +x gradlew
+        run: |
+          chmod +x gradlew
+
+      - name: Show Gradle version
+        working-directory: paint/build/ArmorPaint
+        run: |
+          ./gradlew --version
 
       - name: Build APK
         working-directory: paint/build/ArmorPaint
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK
+        run: |
+          echo "Searching for APK..."
+          find paint/build/ArmorPaint/app/build/outputs -type f -name "*.apk" -print
+
+          test -n "$(find paint/build/ArmorPaint/app/build/outputs -type f -name "*.apk" -print -quit)"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
