@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       # ==================================================
-      # 2. Java 21
+      # 2. Set up Java 21
       # ==================================================
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -25,7 +25,7 @@ jobs:
           java-version: "21"
 
       # ==================================================
-      # 3. Android SDK
+      # 3. Set up Android SDK
       # ==================================================
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -123,7 +123,7 @@ jobs:
           echo "ArmorPaint Android generation completed."
 
       # ==================================================
-      # 8. Repair Android Gradle wrapper
+      # 8. Repair generated Gradle wrapper
       # ==================================================
       - name: Repair generated Gradle wrapper
         working-directory: paint
@@ -241,20 +241,30 @@ jobs:
           ./gradlew --version
 
       # ==================================================
-      # 12. Build APK
+      # 12. Show available Gradle tasks
+      # ==================================================
+      - name: Show Gradle tasks
+        working-directory: paint/build/ArmorPaint
+        shell: bash
+        run: |
+          ./gradlew tasks \
+            --no-daemon
+
+      # ==================================================
+      # 13. Build Android Debug APK
       # ==================================================
       - name: Build APK
         working-directory: paint/build/ArmorPaint
         shell: bash
         run: |
-          ./gradlew assembleDebug \
+          ./gradlew :app:assembleDebug \
             --no-daemon \
             --stacktrace
 
       # ==================================================
-      # 13. Verify APK
+      # 14. Find APK
       # ==================================================
-      - name: Verify APK
+      - name: Find APK
         shell: bash
         run: |
           set -e
@@ -279,11 +289,11 @@ jobs:
           fi
 
           echo
-          echo "APK successfully generated:"
+          echo "APK generated successfully:"
           echo "$APK"
 
       # ==================================================
-      # 14. Upload APK
+      # 15. Upload APK
       # ==================================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
